@@ -1,5 +1,7 @@
 # Security Advisory: Camaleon CMS - Authenticated RCE via `select_eval` Custom Field
 
+**Assigned CVE ID:** CVE-2026-66748
+
 **Product:** Camaleon CMS (https://github.com/owen2345/camaleon-cms)
 **Affected versions:** 2.1.1 – 2.9.1 (introduced commit 415cbda6 2015-10-16; fixed commit 15882366 2026-03-29 / v2.9.2)
 **Severity:** High

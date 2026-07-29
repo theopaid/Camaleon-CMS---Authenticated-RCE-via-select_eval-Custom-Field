@@ -28,15 +28,21 @@ The `select_eval` custom field type stores an arbitrary Ruby expression in `fiel
 
 `instance_eval` is called with the raw string from the database record. No sandboxing and no compile-time restriction on what methods or constants are accessible from the ERB binding (which is a full Rails view context).
 
-**File:** `app/models/camaleon_cms/ability.rb`
+**File:** `app/models/camaleon_cms/ability.rb` (v2.9.1, lines 161-165)
 
-Any user with `custom_fields` permission could create `select_eval` fields:
+`custom_fields` is never granted explicitly. Eight resources get `can :manage` individually further up the file (`media`, `comments`, `themes`, `widgets`, `nav_menu`, `plugins`, `users`, `settings`), and `custom_fields` is not one of them. It is reachable only through this catch-all, which hands `manage` to any key present in the role's `@roles_manager` hash without checking whether that key is safe to grant:
 
 ```ruby
-%i[media comments themes widgets nav_menu plugins users settings custom_fields].each do |resource|
-  safe_can :manage, resource if @roles_manager[resource]
+@roles_manager.try(:each) do |rol_manage_key, val_role|
+  can :manage, rol_manage_key.to_sym if val_role.to_s.cama_true?
+rescue StandardError
+  false
 end
 ```
+
+Any user whose role has the `custom_fields` bit set therefore reaches the custom fields controller. In the affected range that bit is routinely granted to editor-level roles.
+
+The v2.9.2 rewrite replaces `can` with a `safe_can` wrapper and adds an explicit `%i[...]` list containing both `custom_fields` and `select_eval`, but the catch-all loop above still exists in that version. The permission list is not what fixes this issue; the strong-parameters allowlist in `custom_fields_controller.rb` and the `can?(:manage, :select_eval)` gate in `custom_field_group.rb` are.
 
 ## Root Cause Analysis
 
@@ -57,7 +63,7 @@ This report covers `select_eval` exclusively. No existing CVE or public advisory
 
 ## Steps to Reproduce
 
-Tested against v2.1.1–v2.9.1 (the externally exploitable range). Requires only an account with `custom_fields` permission - no server access.
+The affected range v2.1.1 to v2.9.1 was determined by source analysis; exploitation was confirmed end to end on v2.9.1. Requires only an account with `custom_fields` permission - no server access.
 
 **Prerequisites:** Any account with the `custom_fields` manage bit set - a standard editor-role permission in the affected range.
 
